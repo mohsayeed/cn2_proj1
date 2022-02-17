@@ -1,7 +1,4 @@
-from ctypes.wintypes import SIZE
-from email import message
 import socket
-
 sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)      # For UDP
 udp_host = socket.gethostname()		        # Host IP
 udp_port = 12345			                # specified port to connect
