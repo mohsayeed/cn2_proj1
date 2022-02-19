@@ -2,8 +2,8 @@
 #2017
 
 import struct
-from socket import *
 import random
+import socket
 
 #CRC function
 def crc16(data_in):
@@ -34,17 +34,16 @@ def gremlin_func(crc_in):                   #gremlin function
     else:
         return crc_in
 
-file = open("sample_data.txt", "rb")         #open text file, in read mode
 frame = struct.Struct('2I 8s I')            #struct template for frame out
 ack = struct.Struct('2I')                   #struct for ack frame
 frame_number = 1                            #current frame number
 end = 0
 
-serverName = 'localhost'                        #Connect to local machine
-serverPort = 12000                              #port 12000
-clientSocket = socket(AF_INET, SOCK_STREAM)     #create a socket
-clientSocket.connect((serverName,serverPort))   #connect to server
-
+sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+udp_host = socket.gethostname()
+udp_port = 12000
+file = open("sample_data.txt", "rb")         #open text file, in read mode
+sock.sendto((bytes("sayeed","utf-8")),(udp_host,udp_port))
 while end == 0:                                 #while boolean flag end is true
     #get data
     data = file.read(8)                         #read in 8 bytes from file
@@ -57,10 +56,11 @@ while end == 0:                                 #while boolean flag end is true
     #pack and send data
     values = (frame_number, frame.size, data, checksum)
     frame_out = frame.pack(*values)             #pack data in frame
-    clientSocket.send(frame_out)                #output data
+    sock.sendto(frame_out,(udp_host,udp_port))                #output data
 
      #receive ack
-    data_packed = clientSocket.recv(1024)       #reciever data
+    data_packed = sock.recvfrom(1024)       #reciever data
+    data_packed = data_packed[0]
     frame_in_num, frame_in_ack = ack.unpack(data_packed)       #unpack sata
 
     print('To Server:', frame_number, frame_out)
@@ -76,10 +76,11 @@ while end == 0:                                 #while boolean flag end is true
         checksum = gremlin_func(checksum)   #gremlin new checksum
         values = (frame_number, frame.size, data, checksum)
         frame_out = frame.pack(*values)
-        clientSocket.send(frame_out)            #send new frame
+        sock.sendto(frame_out,(udp_host,udp_port))            #send new frame
 
         #receive ack
-        data_packed = clientSocket.recv(1024)
+        data_packed = sock.recvfrom(1024)
+        data_packed = data_packed[0]
         frame_in_num, frame_in_ack = ack.unpack(data_packed)
 
     #make sure ack and correct frame
@@ -87,4 +88,4 @@ while end == 0:                                 #while boolean flag end is true
         frame_number += 1
 
 
-clientSocket.close()        #close socket
+sock.close()        #close socket

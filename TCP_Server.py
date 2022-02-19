@@ -2,15 +2,9 @@
 # Fergal O'Shea
 # 2017
 
-from asyncio.windows_events import NULL
 import struct
-from socket import *
 import random
-
-end = 0
-prev_frame_num = 0
-curr_frame_num = 1
-nak_count = 0
+import socket
 
 def crc16(data_in):
     poly = 0xB9B1                           #We use a polynomial of 0xB9B1
@@ -49,24 +43,31 @@ def data_check( frame_in_num , data, checksum_client ): #checks data
     else:
         return 0
 
+sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+udp_host = socket.gethostname()	
+udp_port = 12000
+SIZE = 4096
+sock.bind((udp_host,udp_port))
+end = 0
+prev_frame_num = 0
+curr_frame_num = 1
+nak_count = 0
 
 ack = struct.Struct('2I')                               #ack frame structure
 frame = struct.Struct('2I 8s I')                        #frame in structure
 
-serverPort = 12000                                      #port to listen in
-serverSocket = socket(AF_INET,SOCK_STREAM)              #create socket
-serverSocket.bind(('', serverPort))                     #bind socket to port
-serverSocket.listen(1)                                  #listen on port
-print ('The server is ready to receive')
-connectionSocket, addr = serverSocket.accept()          #accept first connection
+
 file = open("received_Data1.txt", "wb")                   #open file, in write mode
 
-
+data = sock.recvfrom(1024)
+addresspair = data[1]
 
 while end == 0:                                         #loop while boolean flag is true
     if prev_frame_num == curr_frame_num:                #update expexted frame number
         curr_frame_num += 1
-    data_packed = connectionSocket.recv(1024)           #recieve data
+    data_packed = sock.recvfrom(1024)           #recieve data
+    print(data_packed)
+    data_packed=data_packed[0]
     if len(data_packed)>0:
         frame_in_num, frame_insize, data, checksum_client = frame.unpack(data_packed)   #unpack data
         print(frame_in_num, data_packed)
@@ -74,11 +75,11 @@ while end == 0:                                         #loop while boolean flag
         if frame_out_ack == 1:                          #
             file.write(data)            #if frame was valid, write to file
         frame_out = ack.pack(curr_frame_num, frame_out_ack)     #pack ack frame
-        connectionSocket.send(frame_out)                    #send ack frame
+        sock.sendto(frame_out,addresspair)                    #send ack frame
     if data == b'\x00\x00\x00\x00\x00\x00\x00\x00':  #check for empty frame, to signify end
         end = 1
 
-connectionSocket.close()                                #close socket
+sock.close()                                #close socket
 file.close()                                            #close file
 
 
