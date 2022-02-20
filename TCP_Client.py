@@ -43,12 +43,13 @@ sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 udp_host = socket.gethostname()
 udp_port = 12000
 file = open("sample_data.txt", "rb")         #open text file, in read mode
-sock.sendto((bytes("sayeed","utf-8")),(udp_host,udp_port))
-while end == 0:                                 #while boolean flag end is true
+sock.sendto((bytes("sample_data.txt","utf-8")),(udp_host,udp_port))
+data = file.read(8)                         #read in 8 bytes from file
+
+while data:                                 #while boolean flag end is true
     #get data
-    data = file.read(8)                         #read in 8 bytes from file
-    if data == "":                              #if data is empty, end
-        end = 1
+                             #read in 8 bytes from file
+   
     #get checksum
     checksum_pre_gremlin = crc16(data)          #get checksum
     checksum = gremlin_func(checksum_pre_gremlin)#gremlin checksum
@@ -57,7 +58,7 @@ while end == 0:                                 #while boolean flag end is true
     values = (frame_number, frame.size, data, checksum)
     frame_out = frame.pack(*values)             #pack data in frame
     sock.sendto(frame_out,(udp_host,udp_port))                #output data
-
+    data = file.read(8)
      #receive ack
     data_packed = sock.recvfrom(1024)       #reciever data
     data_packed = data_packed[0]
