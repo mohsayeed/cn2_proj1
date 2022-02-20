@@ -35,7 +35,7 @@ def gremlin_func(crc_in):                   #gremlin function
 
 file = open("sample_data.txt", "rb")         #open text file, in read mode
 file_size = os.stat('sample_data.txt')
-final_frames = (math.ceil(file_size.st_size/8))+1
+final_frames = (math.ceil(file_size.st_size/8))
 frame = struct.Struct('2I 8s I')            #struct template for frame out
 ack = struct.Struct('2I')                   #struct for ack frame
 frame_number = 1                            #current frame number
