@@ -2,80 +2,68 @@ import struct
 import random
 import socket
 
-end = 0
 prev_frame_num = 0
-curr_frame_num = 1
-nak_count = 0
 
-def crc16(data_in):
-    poly = 0xB9B1                           #We use a polynomial of 0xB9B1
-    size = len(data_in)                     #find the size of the data in, for loop
-    crc = 0                                 #initalise remainder
-    i = 0                                   #position in data
-    while i < size:                         #loop through data
+def receiver_checksum_crc(data_in):
+    polynomial_value = 0xB9B1
+    size = len(data_in)
+    result = 0
+    for i in range(0,size):
         byte = (data_in[i])                #convert byte to binary
-        j = 0                               #loop through byte
-        while j < 8:                        #
-            if (crc & 1) ^ (byte & 1):        #
-                crc = (crc >> 1) ^ poly     #divide by polynomial
-            else:
-                crc >>= 1                   #shift bit into remainder
+        for j in range(0,8):                        #
+            if(not  ((result & 1) ^ (byte & 1))):        #
+                result >>= 1
+            elif((result & 1) ^ (byte & 1)):
+                result = (result >> 1) ^ polynomial_value 
             byte >>= 1                        #
-            j += 1
-        i += 1
-    return crc                              #return answer
+    return result                              #return answer
 
-def gremlin_func(crc_in):                   #gremlin function
-    i = random.randint(0,3)                 #choose a random number between 0 and 3
-    if i == 2:                              #if random nuber is 2
-        return crc_in % 2                   #get modulus 2 of crc. Modulus was chosen,
-                                            #as answer guarentted to be in correct range
-    else:
-        return crc_in
+def random_errordec(result_checksum): 
+    random_value = random.randint(0,3) 
+    if random_value != 2:
+        return result_checksum
+    elif(random_value==2):
+        return result_checksum%2
 
-def data_check( frame_in_num , data, checksum_client ): #checks data
-    global prev_frame_num                               #takes in last accpeted frame number
-    checksum_server = crc16(data)       #generates new checksum
-    # print('server = ', checksum_server , 'client = ', checksum_client)
-    checksum_server = gremlin_func(checksum_server)     #gremlins checksum
-    if frame_in_num == prev_frame_num + 1 and checksum_client == checksum_server :  #checks for correct frame number and correct checksum
-        prev_frame_num += 1                             #if correct, updates last accpeted frame
-        return 1                                        #returns 1 for ack, 0 for nak
-    else:
+def data_check( frame_in_num , data, checksum_client ):
+    global prev_frame_num
+    checksum_server = random_errordec(receiver_checksum_crc(data))
+    if frame_in_num != prev_frame_num + 1 or checksum_client != checksum_server :
         return 0
+    elif(frame_in_num == prev_frame_num + 1 and checksum_client == checksum_server):
+        prev_frame_num += 1                    
+        return 1
 
+def startserver():
+    ack = struct.Struct('I I') 
+    frame = struct.Struct('I I 8s I')
+    curr_frame_num = 1
+    serverSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    udp_host = socket.gethostname()	
+    udp_port = 12345 
+    serverSocket.bind((udp_host,udp_port))
+    print ('Server is up and running')
+    data = serverSocket.recvfrom(1024)
+    addresspair = data[1]
+    file_name = data[0].decode('utf-8')
+    file = open(("received"+file_name), "wb")
+    while True:                                         #loop while boolean flag is true
+        if prev_frame_num == curr_frame_num:                #update expexted frame number
+            curr_frame_num += 1
+        data_packed = serverSocket.recvfrom(1024)           #recieve data
+        data_packed = data_packed[0]
+        print(data_packed)
+        if len(data_packed)>0:
+            frame_in_num, frame_insize, data, checksum_client = frame.unpack(data_packed)   #unpack data
+            # print(frame_in_num, data_packed)
+            frame_out_ack = data_check(frame_in_num, data, checksum_client)             #verify frame in, and decide output ack
+            if frame_out_ack == 1:                          #
+                file.write(data)            #if frame was valid, write to file
+            frame_out = ack.pack(curr_frame_num, frame_out_ack)     #pack ack frame
+            serverSocket.sendto(frame_out,(addresspair))                    #send ack frame
+        if data == b'\x00\x00\x00\x00\x00\x00\x00\x00':  #check for empty frame, to signify end
+            break
 
-ack = struct.Struct('2I')                               #ack frame structure
-frame = struct.Struct('2I 8s I')                        #frame in structure
-
-serverSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-udp_host = socket.gethostname()	
-udp_port = 12345                                 #listen on port
-serverSocket.bind((udp_host,udp_port))
-print ('The server is ready to receive')
-data = serverSocket.recvfrom(1024)
-addresspair = data[1]
-file_name = data[0].decode('utf-8')
-file = open(("received"+file_name), "wb")                   #open file, in write mode
-
-
-
-while end == 0:                                         #loop while boolean flag is true
-    if prev_frame_num == curr_frame_num:                #update expexted frame number
-        curr_frame_num += 1
-    data_packed = serverSocket.recvfrom(1024)           #recieve data
-    data_packed = data_packed[0]
-    print(data_packed)
-    if len(data_packed)>0:
-        frame_in_num, frame_insize, data, checksum_client = frame.unpack(data_packed)   #unpack data
-        # print(frame_in_num, data_packed)
-        frame_out_ack = data_check(frame_in_num, data, checksum_client)             #verify frame in, and decide output ack
-        if frame_out_ack == 1:                          #
-            file.write(data)            #if frame was valid, write to file
-        frame_out = ack.pack(curr_frame_num, frame_out_ack)     #pack ack frame
-        serverSocket.sendto(frame_out,(addresspair))                    #send ack frame
-    if data == b'\x00\x00\x00\x00\x00\x00\x00\x00':  #check for empty frame, to signify end
-        end = 1
-
-serverSocket.close()                                #close socket
-file.close()                                            #close file
+    serverSocket.close()                                #close socket
+    file.close()                                            #close file
+startserver()
