@@ -3,6 +3,8 @@ import random
 import socket
 import os
 import math 
+import time
+
 
 def cyclic_redundancy_check(data_in):
     result = 0 
@@ -27,8 +29,9 @@ def random_errordec(result_checksum):
 
 
 def main():
-    file = open("sample_data.txt", "rb")
-    file_size = os.stat('sample_data.txt')
+    file_name = input("please enter the filename")
+    file = open(file_name, "rb")
+    file_size = os.stat(file_name)
     final_frames = (math.ceil(file_size.st_size/8))
     frame = strct.Struct('I I 8s I') 
     ack = strct.Struct('I I') 
@@ -36,7 +39,7 @@ def main():
     udp_host = socket.gethostname()
     udp_port = 12345 
     clientSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-    clientSocket.sendto((bytes("sample_data.txt","utf-8")),(udp_host,udp_port))
+    clientSocket.sendto((bytes(file_name,"utf-8")),(udp_host,udp_port))
     while frame_number<=final_frames:
         data = file.read(8) 
         if data == "":
@@ -70,5 +73,7 @@ def main():
                 break
 
     clientSocket.close()
-
+starttime = time.time()
 main()
+endtime = time.time()
+print(f"Time taken {endtime - starttime} seconds")
