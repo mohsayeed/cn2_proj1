@@ -79,7 +79,6 @@ while end == 0:                                         #loop while boolean flag
     if data == b'\x00\x00\x00\x00\x00\x00\x00\x00':  #check for empty frame, to signify end
         end = 1
 
-sock.close()                                #close socket
 file.close()                                            #close file
-
+sock.sendto(bytes("close","utf-8"),addresspair)
 

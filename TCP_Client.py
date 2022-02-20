@@ -61,6 +61,8 @@ while end == 0:                                 #while boolean flag end is true
      #receive ack
     data_packed = sock.recvfrom(1024)       #reciever data
     data_packed = data_packed[0]
+    if(data_packed.decode('utf-8')=='close'):
+        break
     frame_in_num, frame_in_ack = ack.unpack(data_packed)       #unpack sata
 
     print('To Server:', frame_number, frame_out)
