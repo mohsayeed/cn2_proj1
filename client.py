@@ -1,6 +1,8 @@
 import struct
 import random
 import socket
+import os
+import math 
 
 #CRC function
 def crc16(data_in):
@@ -32,6 +34,8 @@ def gremlin_func(crc_in):                   #gremlin function
         return crc_in
 
 file = open("sample_data.txt", "rb")         #open text file, in read mode
+file_size = os.stat('sample_data.txt')
+final_frames = (math.ceil(file_size.st_size/8))+1
 frame = struct.Struct('2I 8s I')            #struct template for frame out
 ack = struct.Struct('2I')                   #struct for ack frame
 frame_number = 1                            #current frame number
@@ -54,9 +58,10 @@ while end == 0:                                 #while boolean flag end is true
     #pack and send data
     values = (frame_number, frame.size, data, checksum)
     frame_out = frame.pack(*values)             #pack data in frame
-    clientSocket.sendto(frame_out,(udp_host,udp_port))                #output data
-
-     #receive ack
+    clientSocket.sendto(frame_out,(udp_host,udp_port))
+    if data == b'\x00\x00\x00\x00\x00\x00\x00\x00':
+        end = 1
+        break
     data_packed = clientSocket.recvfrom(1024)       #reciever data
     data_packed = data_packed[0]
     frame_in_num, frame_in_ack = ack.unpack(data_packed)       #unpack sata
@@ -84,6 +89,11 @@ while end == 0:                                 #while boolean flag end is true
     #make sure ack and correct frame
     if frame_in_num == frame_number and frame_in_ack == 1:  #update frame number
         frame_number += 1
+        if(frame_number==final_frames):
+            values = (frame_number, frame.size, b'\x00\x00\x00\x00\x00\x00\x00\x00', checksum)
+            frame_out = frame.pack(*values)             #pack data in frame
+            clientSocket.sendto(frame_out,(udp_host,udp_port))
+            end = 1
 
 
 clientSocket.close()        #close socket
